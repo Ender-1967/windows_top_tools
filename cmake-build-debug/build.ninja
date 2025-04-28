@@ -49,11 +49,54 @@ cmake_ninja_workdir = /cygdrive/d/Study/Project/C++project/window_top_tools/cmak
 
 build cmake_object_order_depends_target_window_top_tools: phony || .
 
-build CMakeFiles/window_top_tools.dir/main.cpp.o: CXX_COMPILER__window_top_tools_unscanned_Debug /cygdrive/d/Study/Project/C++project/window_top_tools/main.cpp || cmake_object_order_depends_target_window_top_tools
-  DEP_FILE = CMakeFiles/window_top_tools.dir/main.cpp.o.d
+build CMakeFiles/window_top_tools.dir/src/main.cpp.o: CXX_COMPILER__window_top_tools_unscanned_Debug /cygdrive/d/Study/Project/C++project/window_top_tools/src/main.cpp || cmake_object_order_depends_target_window_top_tools
+  DEP_FILE = CMakeFiles/window_top_tools.dir/src/main.cpp.o.d
   FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -I/cygdrive/d/Study/Project/C++project/window_top_tools/include
   OBJECT_DIR = CMakeFiles/window_top_tools.dir
-  OBJECT_FILE_DIR = CMakeFiles/window_top_tools.dir
+  OBJECT_FILE_DIR = CMakeFiles/window_top_tools.dir/src
+
+build CMakeFiles/window_top_tools.dir/src/pip_window.cpp.o: CXX_COMPILER__window_top_tools_unscanned_Debug /cygdrive/d/Study/Project/C++project/window_top_tools/src/pip_window.cpp || cmake_object_order_depends_target_window_top_tools
+  DEP_FILE = CMakeFiles/window_top_tools.dir/src/pip_window.cpp.o.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -I/cygdrive/d/Study/Project/C++project/window_top_tools/include
+  OBJECT_DIR = CMakeFiles/window_top_tools.dir
+  OBJECT_FILE_DIR = CMakeFiles/window_top_tools.dir/src
+
+build CMakeFiles/window_top_tools.dir/src/main_window.cpp.o: CXX_COMPILER__window_top_tools_unscanned_Debug /cygdrive/d/Study/Project/C++project/window_top_tools/src/main_window.cpp || cmake_object_order_depends_target_window_top_tools
+  DEP_FILE = CMakeFiles/window_top_tools.dir/src/main_window.cpp.o.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -I/cygdrive/d/Study/Project/C++project/window_top_tools/include
+  OBJECT_DIR = CMakeFiles/window_top_tools.dir
+  OBJECT_FILE_DIR = CMakeFiles/window_top_tools.dir/src
+
+build CMakeFiles/window_top_tools.dir/src/thumbnail_manager.cpp.o: CXX_COMPILER__window_top_tools_unscanned_Debug /cygdrive/d/Study/Project/C++project/window_top_tools/src/thumbnail_manager.cpp || cmake_object_order_depends_target_window_top_tools
+  DEP_FILE = CMakeFiles/window_top_tools.dir/src/thumbnail_manager.cpp.o.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -I/cygdrive/d/Study/Project/C++project/window_top_tools/include
+  OBJECT_DIR = CMakeFiles/window_top_tools.dir
+  OBJECT_FILE_DIR = CMakeFiles/window_top_tools.dir/src
+
+build CMakeFiles/window_top_tools.dir/src/input_buffer_window.cpp.o: CXX_COMPILER__window_top_tools_unscanned_Debug /cygdrive/d/Study/Project/C++project/window_top_tools/src/input_buffer_window.cpp || cmake_object_order_depends_target_window_top_tools
+  DEP_FILE = CMakeFiles/window_top_tools.dir/src/input_buffer_window.cpp.o.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -I/cygdrive/d/Study/Project/C++project/window_top_tools/include
+  OBJECT_DIR = CMakeFiles/window_top_tools.dir
+  OBJECT_FILE_DIR = CMakeFiles/window_top_tools.dir/src
+
+build CMakeFiles/window_top_tools.dir/src/global_state.cpp.o: CXX_COMPILER__window_top_tools_unscanned_Debug /cygdrive/d/Study/Project/C++project/window_top_tools/src/global_state.cpp || cmake_object_order_depends_target_window_top_tools
+  DEP_FILE = CMakeFiles/window_top_tools.dir/src/global_state.cpp.o.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -I/cygdrive/d/Study/Project/C++project/window_top_tools/include
+  OBJECT_DIR = CMakeFiles/window_top_tools.dir
+  OBJECT_FILE_DIR = CMakeFiles/window_top_tools.dir/src
+
+build CMakeFiles/window_top_tools.dir/src/utils.cpp.o: CXX_COMPILER__window_top_tools_unscanned_Debug /cygdrive/d/Study/Project/C++project/window_top_tools/src/utils.cpp || cmake_object_order_depends_target_window_top_tools
+  DEP_FILE = CMakeFiles/window_top_tools.dir/src/utils.cpp.o.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -I/cygdrive/d/Study/Project/C++project/window_top_tools/include
+  OBJECT_DIR = CMakeFiles/window_top_tools.dir
+  OBJECT_FILE_DIR = CMakeFiles/window_top_tools.dir/src
 
 
 # =============================================================================
@@ -63,7 +106,7 @@ build CMakeFiles/window_top_tools.dir/main.cpp.o: CXX_COMPILER__window_top_tools
 #############################################
 # Link the executable window_top_tools.exe
 
-build window_top_tools.exe: CXX_EXECUTABLE_LINKER__window_top_tools_Debug CMakeFiles/window_top_tools.dir/main.cpp.o
+build window_top_tools.exe: CXX_EXECUTABLE_LINKER__window_top_tools_Debug CMakeFiles/window_top_tools.dir/src/main.cpp.o CMakeFiles/window_top_tools.dir/src/pip_window.cpp.o CMakeFiles/window_top_tools.dir/src/main_window.cpp.o CMakeFiles/window_top_tools.dir/src/thumbnail_manager.cpp.o CMakeFiles/window_top_tools.dir/src/input_buffer_window.cpp.o CMakeFiles/window_top_tools.dir/src/global_state.cpp.o CMakeFiles/window_top_tools.dir/src/utils.cpp.o
   FLAGS = -g
   LINK_FLAGS = -Wl,--enable-auto-import
   LINK_LIBRARIES = -ldwmapi  -lgdi32  -luser32  -lmsimg32  -limm32

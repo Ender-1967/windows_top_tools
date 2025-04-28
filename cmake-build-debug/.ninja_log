@@ -1,8 +1,12 @@
 # ninja log v6
-13351	14057	1745810270339161900	window_top_tools.exe	56de7831ce75a34c
-88	13350	1745810257076868200	CMakeFiles/window_top_tools.dir/main.cpp.o	6ded0a0419660b7c
-4	273	1745819731722296600	build.ninja	3bd0b0ffd346bb7b
+13370	14169	1745838058897031800	window_top_tools.exe	6db13f38a5d57de
+88	14936	1745837334744065300	CMakeFiles/window_top_tools.dir/main.cpp.o	6ded0a0419660b7c
+382	14828	1745837335038837000	CMakeFiles/window_top_tools.dir/main_window.cpp.o	b0ebe65af8791927
+80	13370	1745838045606457200	CMakeFiles/window_top_tools.dir/pip_window.cpp.o	39391c257a0d61d
+4	273	1745838559782853200	build.ninja	3bd0b0ffd346bb7b
 50	11597	1745763884884249200	CMakeFiles/window_top_tools.dir/ContextTest.cpp.o	94ba64d67bf8b959
 156	12226	1745769830052738700	CMakeFiles/window_top_tools.dir/copy.cpp.o	95bfda68e6a5db36
-29	5194	1745820069373072600	CMakeFiles/window_top_tools.dir/main.cpp.o	6ded0a0419660b7c
-5195	5755	1745820074538658900	window_top_tools.exe	56de7831ce75a34c
+537	14558	1745837335193204000	CMakeFiles/window_top_tools.dir/input_buffer_window.cpp.o	b80fefe64268e91f
+638	14562	1745837335294821800	CMakeFiles/window_top_tools.dir/utils.cpp.o	751df04ef9ca2e06
+586	14884	1745837335242112900	CMakeFiles/window_top_tools.dir/global_state.cpp.o	45417d5845099148
+125	12965	1745838045651466500	CMakeFiles/window_top_tools.dir/thumbnail_manager.cpp.o	232c133476e6263e

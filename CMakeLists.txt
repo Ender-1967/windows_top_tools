@@ -7,10 +7,21 @@ set(CMAKE_CXX_STANDARD 20)
 #link_libraries(gdi32)
 #link_libraries(user32)
 
+include_directories("include/")
 
 add_executable(window_top_tools
-        main.cpp
-#        ContextTest.cpp
+        src/main.cpp
+        src/pip_window.cpp
+
+        src/main_window.cpp
+
+        src/thumbnail_manager.cpp
+
+        src/input_buffer_window.cpp
+
+        src/global_state.cpp
+
+        src/utils.cpp
 )
 target_link_libraries(window_top_tools PRIVATE
         dwmapi

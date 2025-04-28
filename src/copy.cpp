@@ -17,7 +17,6 @@
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "msimg32.lib")
 #pragma comment(lib, "imm32.lib") // 引入输入法相关的库
-
 // 全局变量
 struct ThumbnailInfo {
     HWND hwndPip;         // 画中画窗口句柄
@@ -173,7 +172,7 @@ bool RegisterThumbnail(HWND srcHwnd) {
         // 设置原始窗口属性，使其保持活动状态但不显示
         SetWindowLongPtr(srcHwnd, GWL_EXSTYLE,
                          GetWindowLongPtr(srcHwnd, GWL_EXSTYLE) | WS_EX_LAYERED | WS_EX_TRANSPARENT);
-        SetLayeredWindowAttributes(srcHwnd, 0, 0, LWA_ALPHA); // 完全透明
+        SetLayeredWindowAttributes(srcHwnd, 0, 255, LWA_ALPHA); // 完全透明,设置窗口隐藏
         ShowWindow(srcHwnd, SW_SHOWNORMAL); // 确保窗口处于显示状态
         SetWindowPos(srcHwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); // 始终置顶
 
@@ -391,7 +390,10 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
             break;
 
+//        case WM_MOUSEWHEEL:
         case WM_MOUSEMOVE:
+            if (msg == WM_MOUSEWHEEL)
+                printf("Received message: 0x%04X 0x%04X 0x%04X \n", msg, wParam, lParam);
             if (!(g_appState.isDragging && g_appState.hwndBeingDragged == hwnd)) {
                 // 鼠标移动事件传递
                 HWND originalHwnd = GetOriginalWindowHandle(hwnd);
@@ -411,9 +413,25 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int originalX = static_cast<int>(static_cast<float>(x) / pipWidth * originalWidth);
                     int originalY = static_cast<int>(static_cast<float>(y - TITLE_BAR_HEIGHT) / pipHeight *
                                                      originalHeight);
-
-                    // 发送鼠标消息到原始窗口
-                    PostMessage(originalHwnd, WM_MOUSEMOVE, wParam, MAKELPARAM(originalX, originalY));
+//                    if (msg == WM_MOUSEWHEEL) {
+//                        // 获取当前线程和目标窗口线程的输入信息
+//                        DWORD srcThreadID = GetWindowThreadProcessId(originalHwnd, NULL);
+//                        DWORD currThreadID = GetCurrentThreadId();
+//
+//                        // 如果当前线程不是目标线程，我们使用 AttachThreadInput
+//                        if (srcThreadID != currThreadID) {
+//                            AttachThreadInput(currThreadID, srcThreadID, TRUE);
+//                        }
+//                        SetForegroundWindow(originalHwnd);  // 激活到前台，取得焦点
+//                        SetFocus(originalHwnd);
+//                        printf("Received message x y: %d %d \n", originalX, originalY);
+//                        SendMessage(originalHwnd, msg, wParam, MAKELPARAM(originalX, originalY));
+//                        // 恢复线程的输入信息
+//                        if (srcThreadID != currThreadID) {
+//                            AttachThreadInput(currThreadID, srcThreadID, FALSE);
+//                        }
+//                    }
+                    PostMessage(originalHwnd, msg, wParam, MAKELPARAM(originalX, originalY));
                 }
             } else {
                 // 拖动画中画窗口
@@ -440,13 +458,40 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 SetWindowPos(hwnd, NULL, newX, newY, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
             }
             break;
+        case WM_MOUSEWHEEL: {
+            HWND originalHwnd = GetOriginalWindowHandle(hwnd);
+            if (originalHwnd && IsWindow(originalHwnd)) {
+                // 获取画中画窗口的鼠标位置（屏幕坐标）
+                POINT ptScreen = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+
+                // 转换为原始窗口的客户区坐标
+                ScreenToClient(originalHwnd, &ptScreen);
+                LPARAM lParamOriginal = MAKELPARAM(ptScreen.x, ptScreen.y);
+
+                // 提取滚轮增量
+                int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+
+                // 跨线程输入处理
+                DWORD srcTID = GetWindowThreadProcessId(originalHwnd, NULL);
+                DWORD currTID = GetCurrentThreadId();
+                bool attached = (srcTID != currTID) && AttachThreadInput(currTID, srcTID, TRUE);
+
+                // 发送消息
+                PostMessage(originalHwnd, WM_MOUSEWHEEL, MAKEWPARAM(delta, 0), lParamOriginal);
+
+                // 恢复线程状态
+                if (attached) AttachThreadInput(currTID, srcTID, FALSE);
+            }
+            break;
+        }
+
 
         case WM_KEYDOWN:
         case WM_KEYUP: {
             // 键盘事件传递到原始窗口，检查是否为功能键
             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
             if (originalHwnd) {
-            //有关于输入法的更改
+                //有关于输入法的更改
                 // 检查是否为功能键 (例如，方向键，Enter)
                 if (wParam == VK_LEFT || wParam == VK_RIGHT ||
                     wParam == VK_UP || wParam == VK_DOWN ||
@@ -468,10 +513,8 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                             PostMessage(originalHwnd, msg, wParam, lParam);
                         }
                         ImmReleaseContext(hwnd, hIMC);
-                    }
-                    else
-                    {
-                         PostMessage(originalHwnd, msg, wParam, lParam);
+                    } else {
+                        PostMessage(originalHwnd, msg, wParam, lParam);
                     }
                 }
             }
@@ -650,63 +693,60 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             mmi->ptMinTrackSize.y = (int) (200 / 16.0f * 9.0f) + TITLE_BAR_HEIGHT;
             break;
         }
-        case WM_IME_STARTCOMPOSITION:
-        {
-             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
-             if(originalHwnd)
-             {
-                HIMC hIMC = ImmGetContext(hwnd);
-                if(hIMC)
-                {
-                    ImmAssociateContext(originalHwnd,
-                                        reinterpret_cast<HIMC>(g_thumbnails[originalHwnd].hwndInputBuffer));
-                    ImmReleaseContext(hwnd, hIMC);
-                }
-             }
-             break;
-        }
-        case WM_IME_ENDCOMPOSITION:
-        {
+        case WM_IME_STARTCOMPOSITION: {
             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
-             if(originalHwnd)
-             {
-                  HIMC hIMC = ImmGetContext(hwnd);
-                if(hIMC)
-                {
+            if (originalHwnd) {
+                HIMC hIMC = ImmGetContext(hwnd);
+                if (hIMC) {
                     ImmAssociateContext(originalHwnd,
                                         reinterpret_cast<HIMC>(g_thumbnails[originalHwnd].hwndInputBuffer));
                     ImmReleaseContext(hwnd, hIMC);
                 }
-             }
-             break;
+            }
+            break;
+        }
+        case WM_IME_ENDCOMPOSITION: {
+            HWND originalHwnd = GetOriginalWindowHandle(hwnd);
+            if (originalHwnd) {
+                HIMC hIMC = ImmGetContext(hwnd);
+                if (hIMC) {
+                    ImmAssociateContext(originalHwnd,
+                                        reinterpret_cast<HIMC>(g_thumbnails[originalHwnd].hwndInputBuffer));
+                    ImmReleaseContext(hwnd, hIMC);
+                }
+            }
+            break;
         }
 
-        case WM_IME_COMPOSITION:
-            {
-                HWND originalHwnd = GetOriginalWindowHandle(hwnd);
-                if (originalHwnd) {
-                    HIMC hIMC = ImmGetContext(hwnd);
-                    if (hIMC) {
-                        // 检查是否有结果字符串
-                        if (lParam & GCS_RESULTSTR) {
-                            // 获取结果字符串的长度
-                            LONG resultStrLen = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, NULL, 0);
-                            if (resultStrLen > 0) {
-                                // 分配足够的内存来存储结果字符串
-                                std::wstring resultStr(resultStrLen / sizeof(wchar_t), L'\0');
+        case WM_IME_COMPOSITION: {
+            HWND originalHwnd = GetOriginalWindowHandle(hwnd);
+            if (originalHwnd) {
+                HIMC hIMC = ImmGetContext(hwnd);
+                if (hIMC) {
+                    // 检查是否有结果字符串
+                    if (lParam & GCS_RESULTSTR) {
+                        // 获取结果字符串的长度（包含终止符）
+                        LONG resultStrLen = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, NULL, 0);
+                        if (resultStrLen > 0) {
+                            // 分配足够的内存来存储结果字符串（包括终止符）
+                            std::wstring resultStr((resultStrLen / sizeof(wchar_t)) + 1, L'\0');
 
-                                // 获取结果字符串
-                                ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, &resultStr[0], resultStrLen);
+                            // 获取结果字符串（包括终止符）
+                            ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, &resultStr[0],
+                                                     resultStrLen + sizeof(wchar_t));
 
-                                // 将结果字符串发送到原始窗口
-                                PostMessageW(originalHwnd, WM_IME_CHAR, (WPARAM)resultStr[0], 0);
+                            // 逐个发送字符到原始窗口
+                            for (size_t i = 0; i < wcslen(resultStr.c_str()); i++) {
+                                PostMessageW(originalHwnd, WM_IME_CHAR, (WPARAM) resultStr[i], 0);
                             }
                         }
-                        ImmReleaseContext(hwnd, hIMC);
                     }
+                    ImmReleaseContext(hwnd, hIMC);
                 }
-                break;
             }
+            break;
+        }
+
 
         default:
             return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -720,12 +760,14 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         case WM_DESTROY:
             // 清理所有缩略图
             for (auto &pair: g_thumbnails) {
+                const auto &pipInfo = pair.second;
                 DwmUnregisterThumbnail(pair.second.hThumbnail);
                 DestroyWindow(pair.second.hwndPip);
                 DestroyWindow(pair.second.hwndInputBuffer); // 销毁输入缓冲区窗口
             }
             g_thumbnails.clear();
             PostQuitMessage(0);
+
             break;
 
         case WM_HOTKEY:
@@ -801,6 +843,7 @@ bool RegisterWindowClasses(HINSTANCE hInstance) {
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+    setbuf(stdout, NULL);
     // 注册窗口类
     if (!RegisterWindowClasses(hInstance)) {
         MessageBoxW(NULL, L"Failed to register window classes!", L"Error", MB_ICONERROR);
