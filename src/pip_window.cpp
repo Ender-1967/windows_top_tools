@@ -242,12 +242,6 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_MOUSEWHEEL: {
             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
             if (originalHwnd && IsWindow(originalHwnd)) {
-                // 获取画中画窗口的鼠标位置（屏幕坐标）
-                POINT ptScreen = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-
-                // 转换为原始窗口的客户区坐标
-                ScreenToClient(originalHwnd, &ptScreen);
-                LPARAM lParamOriginal = MAKELPARAM(ptScreen.x, ptScreen.y);
 
                 // 提取滚轮增量
                 int delta = GET_WHEEL_DELTA_WPARAM(wParam);
@@ -256,9 +250,10 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 DWORD srcTID = GetWindowThreadProcessId(originalHwnd, NULL);
                 DWORD currTID = GetCurrentThreadId();
                 bool attached = (srcTID != currTID) && AttachThreadInput(currTID, srcTID, TRUE);
-
-                // 发送消息
-                PostMessage(originalHwnd, WM_MOUSEWHEEL, MAKEWPARAM(delta, 0), lParamOriginal);
+                if(delta > 0)
+                    PostMessage(originalHwnd, WM_VSCROLL, SB_LINEUP,0);
+                else
+                    PostMessage(originalHwnd, WM_VSCROLL, SB_LINEDOWN,0);
 
                 // 恢复线程状态
                 if (attached) AttachThreadInput(currTID, srcTID, FALSE);
