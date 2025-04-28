@@ -1,46 +1,119 @@
-#include <iostream>
 #include <windows.h>
-#include <shellapi.h> // For ShellExecute
+#include <dwmapi.h>
+#include <map>
+#include <string>
+#include <stdio.h>
+#include <windowsx.h>
+#include <algorithm>
+#include <wingdi.h>
+#include <iostream>
 
-// 定义更改 DPI 的函数
-bool SetGlobalDPI(int dpiX, int dpiY) {
-    // 构建控制面板中显示设置的路径
-    std::wstring displaySettingsPath = L"control.exe /name Microsoft.Display";
 
-    // 使用 ShellExecute 打开显示设置
-    HINSTANCE result = ShellExecute(NULL, L"open", displaySettingsPath.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "user32.lib")
+#pragma comment(lib, "gdi32.lib")
+#pragma comment(lib, "msimg32.lib")
+const wchar_t MAIN_WINDOW_CLASS[] = L"PIPManagerMainClass";
 
-    if ((INT_PTR)result > 32) {
-        std::cout << "已尝试打开显示设置，请手动更改 DPI。" << std::endl;
-        return true; // 成功打开显示设置，但实际更改需要用户手动操作
-    } else {
-        std::cerr << "打开显示设置失败，错误代码: " << (int)result << std::endl;
-        return false;
+
+#include <Windows.h>
+
+// 宽字符版本窗口过程
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+        case WM_CHAR: {
+
+            WCHAR wc = (WCHAR) wParam;
+
+            // 判断是否为中文字符（CJK统一汉字区间）
+            if (wc >= 0x4E00 && wc <= 0x9FFF) {
+                // 处理中文输入
+                std::wcout << L"输入中文字符: " << wc << std::endl;
+            } else {
+                // 处理英文/符号
+                std::cout << "输入英文字符: " << (char) wc << std::endl;
+            }
+            break;
+        }
+            // 处理Unicode字符输入
+        default:
+            return DefWindowProcW(hWnd, message, wParam, lParam);
     }
-
-    // 注意：无法通过标准 API 直接以编程方式更改全局 DPI 并立即生效。
-    // 通常需要修改注册表并重启，但这涉及到系统级的更改，风险较高，
-    // 并且可能被操作系统策略限制。
-
-    // 以下是一些相关的注册表键，但直接修改不推荐：
-    // HKEY_CURRENT_CONFIG\Display\Settings\LogPixels
-    // HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Hardware Profiles\Current\Software\Fonts\LogPixels
-
-    // Windows 10/11 引入了更复杂的 DPI 感知机制和每监视器 DPI 设置。
-    // 直接修改注册表可能不会按预期工作，并且可能导致系统不稳定。
-
-    // 更好的做法是引导用户到显示设置中进行更改。
-}
-
-int main() {
-    int targetDPI = 144; // 例如，设置为 144 DPI (150% 缩放)
-
-    std::cout << "尝试打开显示设置以更改 DPI..." << std::endl;
-    if (SetGlobalDPI(targetDPI, targetDPI)) {
-        std::cout << "请在显示设置中手动调整缩放比例。" << std::endl;
-    } else {
-        std::cerr << "更改 DPI 失败。" << std::endl;
-    }
-
     return 0;
 }
+
+
+//// 注册窗口类
+bool RegisterWindowClasses(HINSTANCE hInstance) {
+    WNDCLASSW wc = {};
+
+//    wc.lpfnWndProc = MainWndProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = MAIN_WINDOW_CLASS;
+    if (!RegisterClassW(&wc)) return false;
+
+    wc.lpfnWndProc = WndProc;
+    wc.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
+    wc.lpszClassName = PIP_WINDOW_CLASS;
+    return RegisterClassW(&wc) != 0;
+}
+
+// 注册Unicode窗口类
+//ATOM MyRegisterClass(HINSTANCE hInstance) {
+//    WNDCLASSEXW wcex;  // 使用宽字符结构体
+//    wcex.cbSize = sizeof(WNDCLASSEXW);
+//    wcex.style = CS_HREDRAW | CS_VREDRAW;
+//    wcex.lpfnWndProc = WndProc;  // 宽字符窗口过程
+//    wcex.cbClsExtra = 0;
+//    wcex.cbWndExtra = 0;
+//    wcex.hInstance = hInstance;
+//    wcex.hIcon = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_APPLICATION));  // 宽字符资源加载
+//    wcex.hCursor = LoadCursorW(NULL, reinterpret_cast<LPCWSTR>(IDC_ARROW));
+//    wcex.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
+//    wcex.lpszMenuName = NULL;
+//    wcex.lpszClassName = L"MyUnicodeWindowClass";  // 宽字符类名
+////    wcex.hIconSm = LoadIconW(wcex.hInstance, MAKEINTRESOURCEW(IDI_APPLICATION));
+//
+//    return RegisterClassExW(&wcex);  // 宽字符注册函数
+//}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+    // 注册窗口类
+    if (!MyRegisterClass(hInstance)) {
+        MessageBoxW(NULL, L"Failed to register window classes!", L"Error", MB_ICONERROR);
+        return 1;
+    }
+
+    // 创建主窗口
+    HWND hwnd = CreateWindowW(
+            MAIN_WINDOW_CLASS, L"PIP Manager", WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
+            NULL, NULL, hInstance, NULL);
+
+    if (!hwnd) {
+        MessageBoxW(NULL, L"Failed to create main window!", L"Error", MB_ICONERROR);
+        return 1;
+    }
+
+    // 注册热键 (Alt+Q)
+    if (!RegisterHotKey(hwnd, 1, MOD_ALT | MOD_NOREPEAT, 'Q')) {
+        MessageBoxW(NULL, L"Failed to register hotkey!", L"Warning", MB_ICONWARNING);
+    }
+
+    // 显示主窗口
+    ShowWindow(hwnd, nCmdShow);
+    UpdateWindow(hwnd);
+
+    // 消息循环
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    // 注销热键
+    UnregisterHotKey(hwnd, 1);
+
+    return (int) msg.wParam;
+}
+

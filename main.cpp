@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <wingdi.h>
 #include <iostream>
+#include <imm.h> // 引入输入法相关的头文件
 
 #define UNICODE
 #define _UNICODE
@@ -15,6 +16,7 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "msimg32.lib")
+#pragma comment(lib, "imm32.lib") // 引入输入法相关的库
 
 // 全局变量
 struct ThumbnailInfo {
@@ -25,6 +27,7 @@ struct ThumbnailInfo {
     std::wstring originalTitle; // 原始窗口标题
     RECT originalRect;    // 原始窗口位置
     int originalShowCmd;  // 原始窗口显示状态
+    HWND hwndInputBuffer; // 用于接收中文输入的隐藏窗口
 };
 
 std::map<HWND, ThumbnailInfo> g_thumbnails; // 源窗口 -> 画中画窗口和缩略图句柄映射
@@ -52,6 +55,7 @@ AppState g_appState;
 // 窗口类名
 const wchar_t MAIN_WINDOW_CLASS[] = L"PIPManagerMainClass";
 const wchar_t PIP_WINDOW_CLASS[] = L"PIPWindowClass";
+const wchar_t INPUT_BUFFER_CLASS[] = L"InputBufferClass"; // 新增：隐藏窗口类名
 
 // 声明全局函数
 void UpdateStatusBar(HWND hwnd);
@@ -95,6 +99,22 @@ HWND CreatePipWindow(HWND srcHwnd) {
     return hwnd;
 }
 
+// 创建用于接收中文输入的隐藏窗口
+HWND CreateInputBufferWindow(HINSTANCE hInstance) {
+    WNDCLASSW wc = {};
+    wc.lpfnWndProc = DefWindowProcW; // 使用默认窗口过程
+    wc.hInstance = hInstance;
+    wc.lpszClassName = INPUT_BUFFER_CLASS;
+    RegisterClassW(&wc);
+
+    // 创建一个非常小的、不显示的窗口
+    return CreateWindowExW(
+            WS_EX_TOOLWINDOW, // 不显示在任务栏
+            INPUT_BUFFER_CLASS, L"", WS_POPUP,
+            0, 0, 1, 1, // 极小的尺寸
+            NULL, NULL, hInstance, NULL);
+}
+
 // 注册缩略图
 bool RegisterThumbnail(HWND srcHwnd) {
     // 检查是否已经注册过
@@ -123,6 +143,9 @@ bool RegisterThumbnail(HWND srcHwnd) {
         RECT originalRect;
         GetWindowRect(srcHwnd, &originalRect);
         int originalShowCmd = GetWindowLong(srcHwnd, GWL_STYLE) & WS_VISIBLE ? SW_SHOWNORMAL : SW_HIDE;
+
+        // 创建输入缓冲区窗口
+        HWND hwndInputBuffer = CreateInputBufferWindow(GetModuleHandle(NULL));
 
         // 设置缩略图属性
         DWM_THUMBNAIL_PROPERTIES props = {};
@@ -180,6 +203,7 @@ void UnregisterThumbnail(HWND srcHwnd) {
 
         DwmUnregisterThumbnail(it->second.hThumbnail);
         DestroyWindow(it->second.hwndPip);
+        DestroyWindow(it->second.hwndInputBuffer); // 销毁输入缓冲区窗口
         g_thumbnails.erase(it);
     }
 }
@@ -251,6 +275,8 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 if (it->second.hwndPip == hwnd) {
                     HWND originalHwnd = it->second.hwndOriginal;
                     DwmUnregisterThumbnail(it->second.hThumbnail);
+                    DestroyWindow(it->second.hwndPip);
+                    DestroyWindow(it->second.hwndInputBuffer); // 销毁输入缓冲区窗口
                     g_thumbnails.erase(it);
                     // 移除边框
                     InvalidateRect(originalHwnd, NULL, TRUE);
@@ -318,6 +344,15 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int originalY = static_cast<int>(static_cast<float>(y - TITLE_BAR_HEIGHT) / pipHeight *
                                                      originalHeight);
 
+                    // 激活输入法，并将焦点设置到隐藏窗口
+                    HIMC hIMC = ImmGetContext(originalHwnd);
+                    if (hIMC) {
+                        HWND hwndInputBuffer = g_thumbnails[originalHwnd].hwndInputBuffer; // 获取隐藏窗口句柄
+                        ImmAssociateContext(originalHwnd, reinterpret_cast<HIMC>(hwndInputBuffer)); // 将输入法上下文与隐藏窗口关联
+                        SetFocus(hwndInputBuffer); // 设置焦点到隐藏窗口
+                        ImmReleaseContext(originalHwnd, hIMC);
+                    }
+
                     // 发送鼠标消息到原始窗口
                     PostMessage(originalHwnd, WM_LBUTTONDOWN, wParam, MAKELPARAM(originalX, originalY));
                 }
@@ -350,6 +385,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int originalY = static_cast<int>(static_cast<float>(GET_Y_LPARAM(lParam) - TITLE_BAR_HEIGHT) /
                                                      pipHeight * originalHeight);
 
+                    // 发送鼠标消息到原始窗口
                     PostMessage(originalHwnd, WM_LBUTTONUP, wParam, MAKELPARAM(originalX, originalY));
                 }
             }
@@ -376,6 +412,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int originalY = static_cast<int>(static_cast<float>(y - TITLE_BAR_HEIGHT) / pipHeight *
                                                      originalHeight);
 
+                    // 发送鼠标消息到原始窗口
                     PostMessage(originalHwnd, WM_MOUSEMOVE, wParam, MAKELPARAM(originalX, originalY));
                 }
             } else {
@@ -409,7 +446,34 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // 键盘事件传递到原始窗口，检查是否为功能键
             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
             if (originalHwnd) {
-                PostMessage(originalHwnd, msg, wParam, lParam);
+            //有关于输入法的更改
+                // 检查是否为功能键 (例如，方向键，Enter)
+                if (wParam == VK_LEFT || wParam == VK_RIGHT ||
+                    wParam == VK_UP || wParam == VK_DOWN ||
+                    wParam == VK_RETURN || wParam == VK_ESCAPE ||
+                    wParam == VK_TAB || wParam == VK_CONTROL ||
+                    wParam == VK_SHIFT || wParam == VK_MENU ||
+                    wParam == VK_SPACE || wParam == VK_BACK ||
+                    wParam == VK_DELETE) {
+                    PostMessage(originalHwnd, msg, wParam, lParam);
+                } else {
+                    // 获取输入法上下文
+                    HIMC hIMC = ImmGetContext(hwnd);
+                    if (hIMC) {
+                        // 检查输入法是否处于中文模式
+                        if (ImmGetOpenStatus(hIMC)) {
+                            //  如果输入法开启，不直接传递，通过 WM_IME_COMPOSITION 传递
+                        } else {
+                            // 如果输入法关闭，直接传递
+                            PostMessage(originalHwnd, msg, wParam, lParam);
+                        }
+                        ImmReleaseContext(hwnd, hIMC);
+                    }
+                    else
+                    {
+                         PostMessage(originalHwnd, msg, wParam, lParam);
+                    }
+                }
             }
             break;
         }
@@ -586,6 +650,63 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             mmi->ptMinTrackSize.y = (int) (200 / 16.0f * 9.0f) + TITLE_BAR_HEIGHT;
             break;
         }
+        case WM_IME_STARTCOMPOSITION:
+        {
+             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
+             if(originalHwnd)
+             {
+                HIMC hIMC = ImmGetContext(hwnd);
+                if(hIMC)
+                {
+                    ImmAssociateContext(originalHwnd,
+                                        reinterpret_cast<HIMC>(g_thumbnails[originalHwnd].hwndInputBuffer));
+                    ImmReleaseContext(hwnd, hIMC);
+                }
+             }
+             break;
+        }
+        case WM_IME_ENDCOMPOSITION:
+        {
+            HWND originalHwnd = GetOriginalWindowHandle(hwnd);
+             if(originalHwnd)
+             {
+                  HIMC hIMC = ImmGetContext(hwnd);
+                if(hIMC)
+                {
+                    ImmAssociateContext(originalHwnd,
+                                        reinterpret_cast<HIMC>(g_thumbnails[originalHwnd].hwndInputBuffer));
+                    ImmReleaseContext(hwnd, hIMC);
+                }
+             }
+             break;
+        }
+
+        case WM_IME_COMPOSITION:
+            {
+                HWND originalHwnd = GetOriginalWindowHandle(hwnd);
+                if (originalHwnd) {
+                    HIMC hIMC = ImmGetContext(hwnd);
+                    if (hIMC) {
+                        // 检查是否有结果字符串
+                        if (lParam & GCS_RESULTSTR) {
+                            // 获取结果字符串的长度
+                            LONG resultStrLen = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, NULL, 0);
+                            if (resultStrLen > 0) {
+                                // 分配足够的内存来存储结果字符串
+                                std::wstring resultStr(resultStrLen / sizeof(wchar_t), L'\0');
+
+                                // 获取结果字符串
+                                ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, &resultStr[0], resultStrLen);
+
+                                // 将结果字符串发送到原始窗口
+                                PostMessageW(originalHwnd, WM_IME_CHAR, (WPARAM)resultStr[0], 0);
+                            }
+                        }
+                        ImmReleaseContext(hwnd, hIMC);
+                    }
+                }
+                break;
+            }
 
         default:
             return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -601,6 +722,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             for (auto &pair: g_thumbnails) {
                 DwmUnregisterThumbnail(pair.second.hThumbnail);
                 DestroyWindow(pair.second.hwndPip);
+                DestroyWindow(pair.second.hwndInputBuffer); // 销毁输入缓冲区窗口
             }
             g_thumbnails.clear();
             PostQuitMessage(0);
@@ -666,7 +788,16 @@ bool RegisterWindowClasses(HINSTANCE hInstance) {
     wc.lpfnWndProc = PipWndProc;
     wc.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
     wc.lpszClassName = PIP_WINDOW_CLASS;
-    return RegisterClassW(&wc) != 0;
+    if (!RegisterClassW(&wc)) return false;
+
+    // 注册用于接收中文输入的隐藏窗口类
+    WNDCLASSW inputBufferClass = {};
+    inputBufferClass.lpfnWndProc = DefWindowProcW;
+    inputBufferClass.hInstance = hInstance;
+    inputBufferClass.lpszClassName = INPUT_BUFFER_CLASS;
+    if (!RegisterClassW(&inputBufferClass)) return false;
+
+    return true;
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {

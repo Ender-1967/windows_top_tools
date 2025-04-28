@@ -10,7 +10,8 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(window_top_tools
         main.cpp
-        )
+#        ContextTest.cpp
+)
 target_link_libraries(window_top_tools PRIVATE
         dwmapi
         gdi32
