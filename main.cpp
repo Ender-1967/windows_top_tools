@@ -87,7 +87,7 @@ HWND CreatePipWindow(HWND srcHwnd) {
             L"BUTTON", L"X",
             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
             5, 5, newCloseButtonSize, newCloseButtonSize,
-            hwnd, (HMENU)1, GetModuleHandle(NULL), NULL);
+            hwnd, (HMENU) 1, GetModuleHandle(NULL), NULL);
     TITLE_BAR_HEIGHT = newCloseButtonSize * 1.6;
 
     return hwnd;
@@ -109,7 +109,7 @@ bool RegisterThumbnail(HWND srcHwnd) {
         // 计算原始窗口的宽高比
         RECT srcRect;
         GetWindowRect(srcHwnd, &srcRect);
-        float aspectRatio = (float)(srcRect.right - srcRect.left) / (srcRect.bottom - srcRect.top);
+        float aspectRatio = (float) (srcRect.right - srcRect.left) / (srcRect.bottom - srcRect.top);
 
         // 获取原始窗口标题
         int titleLength = GetWindowTextLengthW(srcHwnd) + 1;
@@ -181,7 +181,7 @@ bool IsInTitleBar(HWND hwnd, int x, int y) {
 
 // 查找与hwndPip关联的原始窗口句柄
 HWND GetOriginalWindowHandle(HWND hwndPip) {
-    for (const auto& pair : g_thumbnails) {
+    for (const auto &pair: g_thumbnails) {
         if (pair.second.hwndPip == hwndPip) {
             return pair.second.hwndOriginal;
         }
@@ -259,7 +259,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_DRAWITEM:
             if (wParam == 1) { // 绘制关闭按钮
-                LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
+                LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT) lParam;
                 HBRUSH hBrush = CreateSolidBrush(RGB(255, 0, 0));
                 FillRect(dis->hDC, &dis->rcItem, hBrush);
                 DeleteObject(hBrush);
@@ -303,7 +303,8 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int originalHeight = originalRect.bottom - originalRect.top;
 
                     int originalX = static_cast<int>(static_cast<float>(x) / pipWidth * originalWidth);
-                    int originalY = static_cast<int>(static_cast<float>(y - TITLE_BAR_HEIGHT) / pipHeight * originalHeight);
+                    int originalY = static_cast<int>(static_cast<float>(y - TITLE_BAR_HEIGHT) / pipHeight *
+                                                     originalHeight);
 
                     // 发送鼠标消息到原始窗口
                     PostMessage(originalHwnd, WM_LBUTTONDOWN, wParam, MAKELPARAM(originalX, originalY));
@@ -332,8 +333,10 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int originalWidth = originalRect.right - originalRect.left;
                     int originalHeight = originalRect.bottom - originalRect.top;
 
-                    int originalX = static_cast<int>(static_cast<float>(GET_X_LPARAM(lParam)) / pipWidth * originalWidth);
-                    int originalY = static_cast<int>(static_cast<float>(GET_Y_LPARAM(lParam) - TITLE_BAR_HEIGHT) / pipHeight * originalHeight);
+                    int originalX = static_cast<int>(static_cast<float>(GET_X_LPARAM(lParam)) / pipWidth *
+                                                     originalWidth);
+                    int originalY = static_cast<int>(static_cast<float>(GET_Y_LPARAM(lParam) - TITLE_BAR_HEIGHT) /
+                                                     pipHeight * originalHeight);
 
                     PostMessage(originalHwnd, WM_LBUTTONUP, wParam, MAKELPARAM(originalX, originalY));
                 }
@@ -358,7 +361,8 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int x = GET_X_LPARAM(lParam);
                     int y = GET_Y_LPARAM(lParam);
                     int originalX = static_cast<int>(static_cast<float>(x) / pipWidth * originalWidth);
-                    int originalY = static_cast<int>(static_cast<float>(y - TITLE_BAR_HEIGHT) / pipHeight * originalHeight);
+                    int originalY = static_cast<int>(static_cast<float>(y - TITLE_BAR_HEIGHT) / pipHeight *
+                                                     originalHeight);
 
                     PostMessage(originalHwnd, WM_MOUSEMOVE, wParam, MAKELPARAM(originalX, originalY));
                 }
@@ -393,29 +397,13 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // 键盘事件传递到原始窗口，检查是否为功能键
             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
             if (originalHwnd) {
-                // 检查是否为功能键 (例如，方向键，Enter)
-                if (wParam == VK_LEFT || wParam == VK_RIGHT ||
-                    wParam == VK_UP || wParam == VK_DOWN ||
-                    wParam == VK_RETURN || wParam == VK_ESCAPE ||
-                    wParam == VK_TAB    || wParam == VK_CONTROL ||
-                    wParam == VK_SHIFT  || wParam == VK_MENU    ||
-                    wParam == VK_SPACE  || wParam == VK_BACK    ||
-                    wParam == VK_DELETE)
-                {
-                    PostMessage(originalHwnd, msg, wParam, lParam);
-                }
-                else
-                {
-                    PostMessage(originalHwnd, msg, wParam, lParam);
-                }
+                PostMessage(originalHwnd, msg, wParam, lParam);
             }
             break;
         }
-        case WM_CHAR:
-        {
+        case WM_CHAR: {
             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
-            if(originalHwnd)
-            {
+            if (originalHwnd) {
                 PostMessage(originalHwnd, msg, wParam, lParam);
             }
             break;
@@ -439,7 +427,8 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // 绘制标题栏
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
-            HFONT hFont = CreateFontW(20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH, L"Segoe UI");
+            HFONT hFont = CreateFontW(20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS,
+                                      CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH, L"Segoe UI");
             SelectObject(hdc, hFont);
 
             RECT titleRect;
@@ -447,7 +436,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             titleRect.bottom = TITLE_BAR_HEIGHT;
 
             TRIVERTEX vertex[2] = {
-                    {titleRect.left, titleRect.top, 240, 240, 240, 240},
+                    {titleRect.left,  titleRect.top,    240, 240, 240, 240},
                     {titleRect.right, titleRect.bottom, 200, 200, 200, 255}};
             GRADIENT_RECT gRect = {0, 1};
             GradientFill(hdc, vertex, 2, &gRect, 1, GRADIENT_FILL_RECT_V);
@@ -458,17 +447,13 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
             if (originalHwnd) {
                 auto it = g_thumbnails.find(originalHwnd);
-                if(it != g_thumbnails.end())
-                {
-                    DrawTextW(hdc, it->second.originalTitle.c_str(), -1, &titleRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-                }
-                else
-                {
+                if (it != g_thumbnails.end()) {
+                    DrawTextW(hdc, it->second.originalTitle.c_str(), -1, &titleRect,
+                              DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+                } else {
                     DrawTextW(hdc, L"PIP Window", -1, &titleRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
                 }
-            }
-            else
-            {
+            } else {
                 DrawTextW(hdc, L"PIP Window", -1, &titleRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             }
 
@@ -490,7 +475,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_SIZE: {
             if (g_appState.isResizing) break;
             // 调整缩略图和状态栏大小
-            for (auto& pair : g_thumbnails) {
+            for (auto &pair: g_thumbnails) {
                 if (pair.second.hwndPip == hwnd) {
                     RECT destRect;
                     GetClientRect(hwnd, &destRect);
@@ -510,7 +495,8 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             int height = windowRect.bottom - windowRect.top;
 
             RECT statusRect = {0, height - STATUS_BAR_HEIGHT, width, height};
-            MoveWindow(g_appState.hwndStatusBar, statusRect.left, statusRect.top, statusRect.right - statusRect.left, STATUS_BAR_HEIGHT, TRUE);
+            MoveWindow(g_appState.hwndStatusBar, statusRect.left, statusRect.top, statusRect.right - statusRect.left,
+                       STATUS_BAR_HEIGHT, TRUE);
             break;
         }
 
@@ -518,8 +504,8 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (g_appState.isResizing) return TRUE;
             g_appState.isResizing = true;
 
-            ThumbnailInfo* info = nullptr;
-            for (auto& pair : g_thumbnails) {
+            ThumbnailInfo *info = nullptr;
+            for (auto &pair: g_thumbnails) {
                 if (pair.second.hwndPip == hwnd) {
                     info = &pair.second;
                     break;
@@ -527,7 +513,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
 
             if (info) {
-                RECT* pRect = (RECT*)lParam;
+                RECT *pRect = (RECT *) lParam;
                 const int titleHeight = TITLE_BAR_HEIGHT;
 
                 int width = pRect->right - pRect->left;
@@ -547,7 +533,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         break;
 
                     default: {
-                        bool widthDominant = (static_cast<float>(width)/height) > info->aspectRatio;
+                        bool widthDominant = (static_cast<float>(width) / height) > info->aspectRatio;
                         if (widthDominant) {
                             height = static_cast<int>(width / info->aspectRatio);
                         } else {
@@ -567,13 +553,15 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         }
                     }
                 }
-            }RECT windowRect;
+            }
+            RECT windowRect;
             GetClientRect(hwnd, &windowRect);
             int width = windowRect.right - windowRect.left;
             int height = windowRect.bottom - windowRect.top;
 
-            RECT statusRect = { 0, height - STATUS_BAR_HEIGHT, width, height };
-            MoveWindow(g_appState.hwndStatusBar, statusRect.left, statusRect.top, statusRect.right - statusRect.left, STATUS_BAR_HEIGHT, TRUE);
+            RECT statusRect = {0, height - STATUS_BAR_HEIGHT, width, height};
+            MoveWindow(g_appState.hwndStatusBar, statusRect.left, statusRect.top, statusRect.right - statusRect.left,
+                       STATUS_BAR_HEIGHT, TRUE);
 
             g_appState.isResizing = false;
             return TRUE;
@@ -581,9 +569,9 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_GETMINMAXINFO: {
             // 设置最小尺寸
-            MINMAXINFO* mmi = (MINMAXINFO*)lParam;
+            MINMAXINFO *mmi = (MINMAXINFO *) lParam;
             mmi->ptMinTrackSize.x = 200;
-            mmi->ptMinTrackSize.y = (int)(200 / 16.0f * 9.0f) + TITLE_BAR_HEIGHT;
+            mmi->ptMinTrackSize.y = (int) (200 / 16.0f * 9.0f) + TITLE_BAR_HEIGHT;
             break;
         }
 
@@ -598,7 +586,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     switch (msg) {
         case WM_DESTROY:
             // 清理所有缩略图
-            for (auto& pair : g_thumbnails) {
+            for (auto &pair: g_thumbnails) {
                 DwmUnregisterThumbnail(pair.second.hThumbnail);
                 DestroyWindow(pair.second.hwndPip);
             }
@@ -613,8 +601,7 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 if (fgWindow && g_thumbnails.find(fgWindow) == g_thumbnails.end()) {
                     RegisterThumbnail(fgWindow);
                     // 绘制原始窗口边框
-                    if (g_appState.showOriginalBorder)
-                    {
+                    if (g_appState.showOriginalBorder) {
                         InvalidateRect(fgWindow, NULL, TRUE);
                         UpdateWindow(fgWindow);
                     }
@@ -642,10 +629,8 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         }
         case WM_PAINT:
             // 绘制原始窗口边框
-            if (g_appState.showOriginalBorder)
-            {
-                for(auto const& [hwnd, thumbnailInfo] : g_thumbnails)
-                {
+            if (g_appState.showOriginalBorder) {
+                for (auto const &[hwnd, thumbnailInfo]: g_thumbnails) {
                     DrawOriginalWindowBorder(hwnd);
                 }
             }
@@ -667,7 +652,7 @@ bool RegisterWindowClasses(HINSTANCE hInstance) {
     if (!RegisterClassW(&wc)) return false;
 
     wc.lpfnWndProc = PipWndProc;
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
     wc.lpszClassName = PIP_WINDOW_CLASS;
     return RegisterClassW(&wc) != 0;
 }
@@ -709,6 +694,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     // 注销热键
     UnregisterHotKey(hwnd, 1);
 
-    return (int)msg.wParam;
+    return (int) msg.wParam;
 }
 
