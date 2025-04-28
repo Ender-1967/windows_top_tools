@@ -23,6 +23,8 @@ struct ThumbnailInfo {
     HTHUMBNAIL hThumbnail; // 缩略图句柄
     float aspectRatio;    // 宽高比
     std::wstring originalTitle; // 原始窗口标题
+    RECT originalRect;    // 原始窗口位置
+    int originalShowCmd;  // 原始窗口显示状态
 };
 
 std::map<HWND, ThumbnailInfo> g_thumbnails; // 源窗口 -> 画中画窗口和缩略图句柄映射
@@ -117,6 +119,11 @@ bool RegisterThumbnail(HWND srcHwnd) {
         GetWindowTextW(srcHwnd, &originalTitle[0], titleLength);
         originalTitle.resize(titleLength - 1);
 
+        // 保存原始窗口信息
+        RECT originalRect;
+        GetWindowRect(srcHwnd, &originalRect);
+        int originalShowCmd = GetWindowLong(srcHwnd, GWL_STYLE) & WS_VISIBLE ? SW_SHOWNORMAL : SW_HIDE;
+
         // 设置缩略图属性
         DWM_THUMBNAIL_PROPERTIES props = {};
         props.dwFlags = DWM_TNP_RECTDESTINATION | DWM_TNP_VISIBLE |
@@ -159,16 +166,21 @@ bool RegisterThumbnail(HWND srcHwnd) {
 void UnregisterThumbnail(HWND srcHwnd) {
     auto it = g_thumbnails.find(srcHwnd);
     if (it != g_thumbnails.end()) {
-        DwmUnregisterThumbnail(it->second.hThumbnail);
-        DestroyWindow(it->second.hwndPip);
-        g_thumbnails.erase(it);
 
         // 恢复原始窗口的属性
         SetWindowLongPtr(srcHwnd, GWL_EXSTYLE,
                          GetWindowLongPtr(srcHwnd, GWL_EXSTYLE) & ~(WS_EX_LAYERED | WS_EX_TRANSPARENT));
         SetLayeredWindowAttributes(srcHwnd, 0, 255, LWA_ALPHA); // 恢复不透明度
-        ShowWindow(srcHwnd, SW_SHOWNORMAL);  // 恢复显示状态
+//        SetWindowPos(srcHwnd, NULL, it->second.originalRect.left, it->second.originalRect.top,
+//                     it->second.originalRect.right - it->second.originalRect.left,
+//                     it->second.originalRect.bottom - it->second.originalRect.top,
+//                     SWP_NOZORDER);
+//        ShowWindow(srcHwnd, it->second.originalShowCmd); // 恢复显示状态
         SetWindowPos(srcHwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); // 取消置顶
+
+        DwmUnregisterThumbnail(it->second.hThumbnail);
+        DestroyWindow(it->second.hwndPip);
+        g_thumbnails.erase(it);
     }
 }
 
