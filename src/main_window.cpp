@@ -23,14 +23,26 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
         case WM_HOTKEY:
             if (wParam == 1) {
-                // 注册当前前台窗口为缩略图
                 HWND fgWindow = GetForegroundWindow();
-                if (fgWindow && g_thumbnails.find(fgWindow) == g_thumbnails.end()) {
-                    RegisterThumbnail(fgWindow);
-                    // 绘制原始窗口边框
+                HWND originalHwnd = GetOriginalWindowHandle(fgWindow); // 尝试获取原始窗口句柄
+                if (originalHwnd) {
+                    // 如果前台窗口是画中画窗口，则获取其对应的原始窗口
+                    UnregisterThumbnail(originalHwnd); // 取消注册原始窗口
+                    // 移除边框
                     if (g_appState.showOriginalBorder) {
-                        InvalidateRect(fgWindow, NULL, TRUE);
-                        UpdateWindow(fgWindow);
+                        InvalidateRect(originalHwnd, NULL, TRUE);
+                        UpdateWindow(originalHwnd);
+                    }
+                } else {
+                    // 如果前台窗口不是画中画窗口
+                    if (fgWindow && g_thumbnails.find(fgWindow) == g_thumbnails.end()) {
+                        // 且未被注册，则注册
+                        RegisterThumbnail(fgWindow);
+                        // 绘制原始窗口边框
+                        if (g_appState.showOriginalBorder) {
+                            InvalidateRect(fgWindow, NULL, TRUE);
+                            UpdateWindow(fgWindow);
+                        }
                     }
                 }
             }

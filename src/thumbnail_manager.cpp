@@ -93,8 +93,9 @@ void UnregisterThumbnail(HWND srcHwnd) {
         SetWindowPos(srcHwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); // 取消置顶
 
         DwmUnregisterThumbnail(it->second.hThumbnail);
-        DestroyWindow(it->second.hwndPip);
-        DestroyWindow(it->second.hwndInputBuffer); // 销毁输入缓冲区窗口
+//        DestroyWindow(it->second.hwndInputBuffer); // 销毁输入缓冲区窗口
+        if(IsWindow(it->second.hwndPip))
+            DestroyWindow(it->second.hwndPip);
         g_thumbnails.erase(it);
     }
 }

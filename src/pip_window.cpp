@@ -49,23 +49,23 @@ HWND CreatePipWindow(HWND srcHwnd) {
 // 画中画窗口过程
 LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
-        case WM_DESTROY:
-            // 清理缩略图资源
-            for (auto it = g_thumbnails.begin(); it != g_thumbnails.end(); ++it) {
-                if (it->second.hwndPip == hwnd) {
-                    HWND originalHwnd = it->second.hwndOriginal;
-                    DwmUnregisterThumbnail(it->second.hThumbnail);
-                    DestroyWindow(it->second.hwndPip);
-                    DestroyWindow(it->second.hwndInputBuffer); // 销毁输入缓冲区窗口
-                    g_thumbnails.erase(it);
-                    // 移除边框
-                    InvalidateRect(originalHwnd, NULL, TRUE);
-                    UpdateWindow(originalHwnd);
-                    break;
-                }
-            }
-            UpdateStatusBar(hwnd); // 更新状态栏
-            break;
+//        case WM_DESTROY:
+//            // 清理缩略图资源
+//            for (auto it = g_thumbnails.begin(); it != g_thumbnails.end(); ++it) {
+//                if (it->second.hwndPip == hwnd) {
+//                    HWND originalHwnd = it->second.hwndOriginal;
+//                    DwmUnregisterThumbnail(it->second.hThumbnail);
+////                    DestroyWindow(it->second.hwndPip);
+////                    DestroyWindow(it->second.hwndInputBuffer); // 销毁输入缓冲区窗口
+//                    g_thumbnails.erase(it);
+//                    // 移除边框
+//                    InvalidateRect(originalHwnd, NULL, TRUE);
+//                    UpdateWindow(originalHwnd);
+//                    break;
+//                }
+//            }
+////            UpdateStatusBar(hwnd); // 更新状态栏
+//            return 0;
 
         case WM_COMMAND:
             if (LOWORD(wParam) == 1) { // 关闭按钮
