@@ -173,8 +173,6 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 //        case WM_MOUSEWHEEL:
         case WM_MOUSEMOVE:
-            if (msg == WM_MOUSEWHEEL)
-                printf("Received message: 0x%04X 0x%04X 0x%04X \n", msg, wParam, lParam);
             if (!(g_appState.isDragging && g_appState.hwndBeingDragged == hwnd)) {
                 // 鼠标移动事件传递
                 HWND originalHwnd = GetOriginalWindowHandle(hwnd);
@@ -194,24 +192,6 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     int originalX = static_cast<int>(static_cast<float>(x) / pipWidth * originalWidth);
                     int originalY = static_cast<int>(static_cast<float>(y - TITLE_BAR_HEIGHT) / pipHeight *
                                                      originalHeight);
-//                    if (msg == WM_MOUSEWHEEL) {
-//                        // 获取当前线程和目标窗口线程的输入信息
-//                        DWORD srcThreadID = GetWindowThreadProcessId(originalHwnd, NULL);
-//                        DWORD currThreadID = GetCurrentThreadId();
-//
-//                        // 如果当前线程不是目标线程，我们使用 AttachThreadInput
-//                        if (srcThreadID != currThreadID) {
-//                            AttachThreadInput(currThreadID, srcThreadID, TRUE);
-//                        }
-//                        SetForegroundWindow(originalHwnd);  // 激活到前台，取得焦点
-//                        SetFocus(originalHwnd);
-//                        printf("Received message x y: %d %d \n", originalX, originalY);
-//                        SendMessage(originalHwnd, msg, wParam, MAKELPARAM(originalX, originalY));
-//                        // 恢复线程的输入信息
-//                        if (srcThreadID != currThreadID) {
-//                            AttachThreadInput(currThreadID, srcThreadID, FALSE);
-//                        }
-//                    }
                     PostMessage(originalHwnd, msg, wParam, MAKELPARAM(originalX, originalY));
                 }
             } else {
@@ -242,7 +222,12 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_MOUSEWHEEL: {
             HWND originalHwnd = GetOriginalWindowHandle(hwnd);
             if (originalHwnd && IsWindow(originalHwnd)) {
+                WORD keyFlags = LOWORD(wParam);               // 低位
+                if(keyFlags == MK_CONTROL){
+                    printf("zoom\n");
 
+                    break;
+                }
                 // 提取滚轮增量
                 int delta = GET_WHEEL_DELTA_WPARAM(wParam);
 
@@ -250,6 +235,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 DWORD srcTID = GetWindowThreadProcessId(originalHwnd, NULL);
                 DWORD currTID = GetCurrentThreadId();
                 bool attached = (srcTID != currTID) && AttachThreadInput(currTID, srcTID, TRUE);
+
                 if(delta > 0)
                     PostMessage(originalHwnd, WM_VSCROLL, SB_LINEUP,0);
                 else
