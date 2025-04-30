@@ -6,14 +6,23 @@
 #include "../include/global_state.h"
 #include "../include/utils.h"
 
+// 声明全局变量 g_originalWindowRects
+extern std::map<HWND, RECT> g_originalWindowRects;
+
 // 注册缩略图
 bool RegisterThumbnail(HWND srcHwnd) {
+
     // 检查是否已经注册过
     if (g_thumbnails.find(srcHwnd) != g_thumbnails.end()) {
         return false;
     }
-
     HWND destHwnd = CreatePipWindow(srcHwnd);
+
+    // 保存原始窗口信息
+    RECT originalRect;
+    GetWindowRect(srcHwnd, &originalRect);
+    g_originalWindowRects[destHwnd] = originalRect;  // 保存原始窗口大小
+
     if (!destHwnd) return false;
 
     HTHUMBNAIL thumbnail;
