@@ -16,6 +16,8 @@ struct ThumbnailInfo {
     RECT originalRect;    // 原始窗口位置
     int originalShowCmd;  // 原始窗口显示状态
     HWND hwndInputBuffer; // 用于接收中文输入的隐藏窗口
+    float scaleX;
+    float scaleY;
 };
 
 struct AppState {
