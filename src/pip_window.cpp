@@ -11,41 +11,31 @@
 // 声明全局变量 g_originalWindowRects
 extern std::map<HWND, RECT> g_originalWindowRects;
 
-// 创建画中画窗口
+// 创建窗口(带边框)
 HWND CreatePipWindow(HWND srcHwnd) {
     // 获取源窗口位置和大小
     RECT srcRect;
     GetWindowRect(srcHwnd, &srcRect);
 
-    // 计算缩略图尺寸
+    // 计算缩略图尺寸 (初始大小)
     int width = static_cast<int>((srcRect.right - srcRect.left) * SCALE_FACTOR);
-    int height = static_cast<int>((srcRect.bottom - srcRect.top) * SCALE_FACTOR) + CLOSE_BUTTON_SIZE;
+    int height = static_cast<int>((srcRect.bottom - srcRect.top) * SCALE_FACTOR);
 
-    // 创建无边框窗口，并移除标题栏
+    // 创建带有边框和标题栏的窗口
     HWND hwnd = CreateWindowExW(
             WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
             PIP_WINDOW_CLASS,
             L"PIP Window",
-            WS_POPUP | WS_VISIBLE | WS_VISIBLE,
+            WS_OVERLAPPEDWINDOW | WS_VISIBLE, // 更改：使用WS_OVERLAPPEDWINDOW
             srcRect.left, srcRect.top, width, height,
             NULL, NULL, GetModuleHandle(NULL), NULL);
 
-    // 设置窗口圆角
-    HRGN hRgn = CreateRoundRectRgn(0, 0, width, height, 8, 8);
-    SetWindowRgn(hwnd, hRgn, TRUE);
-    DeleteObject(hRgn);
+    if (!hwnd) {
+        return nullptr; // 窗口创建失败
+    }
 
     // 设置背景透明度,主窗口透明
     SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
-
-    // 创建缩小后的关闭按钮并固定到左上角
-    const int newCloseButtonSize = CLOSE_BUTTON_SIZE / 2;
-    CreateWindowW(
-            L"BUTTON", L"X",
-            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
-            5, 5, newCloseButtonSize, newCloseButtonSize,
-            hwnd, (HMENU) 1, GetModuleHandle(NULL), NULL);
-    TITLE_BAR_HEIGHT = newCloseButtonSize * 1.6;
 
     return hwnd;
 }
@@ -298,68 +288,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             break;
         }
 
-        case WM_NCHITTEST: {
-            // 先检查是否在可拖动区域
-            POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-            ScreenToClient(hwnd, &pt);
 
-            // 检查关闭按钮区域
-            if (pt.y < TITLE_BAR_HEIGHT && pt.x < (CLOSE_BUTTON_SIZE + 10)) {
-                return HTCLIENT; // 让按钮处理点击
-            }
-
-            // 检查标题栏区域
-            if (pt.y < TITLE_BAR_HEIGHT) {
-                return HTCAPTION;
-            }
-
-            // 模拟窗口边框
-            RECT windowRect;
-            GetWindowRect(hwnd, &windowRect);
-            int borderWidth = 5; // 边框宽度，可以根据需要调整
-            int x = GET_X_LPARAM(lParam);
-            int y = GET_Y_LPARAM(lParam);
-
-            bool originalWindowResizable = false;
-            HWND originalHwnd = GetOriginalWindowHandle(hwnd);
-            if (originalHwnd) {
-                LONG style = GetWindowLong(originalHwnd, GWL_STYLE);
-                if (style & WS_THICKFRAME) {
-                    originalWindowResizable = true;
-                }
-            }
-            if (originalWindowResizable) {
-                if (pt.y <= borderWidth && pt.x <= borderWidth)
-                    return HTTOPLEFT;
-                if (pt.y <= borderWidth && pt.x >= windowRect.right - windowRect.left - borderWidth)
-                    return HTTOPRIGHT;
-                if (pt.y >= windowRect.bottom - windowRect.top - borderWidth && pt.x <= borderWidth)
-                    return HTBOTTOMLEFT;
-                if (pt.y >= windowRect.bottom - windowRect.top - borderWidth &&
-                    pt.x >= windowRect.right - windowRect.left - borderWidth)
-                    return HTBOTTOMRIGHT;
-                if (pt.y <= borderWidth)
-                    return HTTOP;
-                if (pt.y >= windowRect.bottom - windowRect.top - borderWidth)
-                    return HTBOTTOM;
-                if (pt.x <= borderWidth)
-                    return HTLEFT;
-                if (pt.x >= windowRect.right - windowRect.left - borderWidth)
-                    return HTRIGHT;
-            }
-
-            // 默认处理边框区域前，先检查原始窗口是否可调整大小
-
-            // 默认处理边框区域
-            LRESULT hit = DefWindowProc(hwnd, msg, wParam, lParam);
-
-            // 如果是边框区域，直接返回系统检测结果
-            if (hit != HTCLIENT) {
-                return hit;
-            }
-
-            return HTCLIENT;
-        }
 
 
         case WM_PAINT: {
@@ -411,25 +340,26 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             break;
         }
 
+
         case WM_SIZE: {
-            if (g_appState.isResizing) break;
             // 调整缩略图和状态栏大小
             for (auto &pair: g_thumbnails) {
                 if (pair.second.hwndPip == hwnd) {
-                    RECT destRect;
-                    GetClientRect(hwnd, &destRect);
-                    destRect.top += TITLE_BAR_HEIGHT;
+                    RECT clientRect;
+                    GetClientRect(hwnd, &clientRect);
+
+                    clientRect.top += TITLE_BAR_HEIGHT;
 
                     // 计算新的缩放比例
                     RECT originalRect;
                     GetWindowRect(pair.second.hwndOriginal, &originalRect);
-                    float scaleX = (float)(destRect.right - destRect.left) / (originalRect.right - originalRect.left);
-                    float scaleY = (float)(destRect.bottom - destRect.top) / (originalRect.bottom - originalRect.top);
+                    float scaleX = (float)(clientRect.right - clientRect.left) / (originalRect.right - originalRect.left);
+                    float scaleY = (float)(clientRect.bottom - clientRect.top) / (originalRect.bottom - originalRect.top);
 
                     // 更新缩略图属性
                     DWM_THUMBNAIL_PROPERTIES props = {};
                     props.dwFlags = DWM_TNP_RECTDESTINATION | DWM_TNP_VISIBLE;
-                    props.rcDestination = destRect;
+                    props.rcDestination = clientRect;
                     props.fVisible = TRUE;
 
                     DwmUpdateThumbnailProperties(pair.second.hThumbnail, &props);
@@ -440,6 +370,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 }
             }
+            // 调整状态栏位置
             RECT windowRect;
             GetClientRect(hwnd, &windowRect);
             int width = windowRect.right - windowRect.left;
@@ -451,99 +382,46 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             break;
         }
 
-//        case WM_SIZING: {
-//            if (g_appState.isResizing) return TRUE;
-//            g_appState.isResizing = true;
-//
-//            // 获取原始宽高比信息
-//            ThumbnailInfo* info = nullptr;
-//            for (auto& pair : g_thumbnails) {
-//                if (pair.second.hwndPip == hwnd) {
-//                    info = &pair.second;
-//                    break;
-//                }
-//            }
-//
-//            if (!info) {
-//                g_appState.isResizing = false;
-//                return DefWindowProc(hwnd, msg, wParam, lParam);
-//            }
-//
-//            RECT* pRect = (RECT*)lParam;
-//            const float aspectRatio = info->aspectRatio;
-//
-//            // 计算可用区域（排除标题栏）
-//            int titleHeight = TITLE_BAR_HEIGHT;
-//            int contentHeight = (pRect->bottom - pRect->top) - titleHeight;
-//
-//            // 根据拖动方向强制保持宽高比
-//            switch (wParam) {
-//                case WMSZ_LEFT:      // 左侧
-//                case WMSZ_RIGHT:     // 右侧
-//                    contentHeight = static_cast<int>((pRect->right - pRect->left) / aspectRatio);
-//                    pRect->bottom = pRect->top + titleHeight + contentHeight;
-//                    break;
-//
-//                case WMSZ_TOP:       // 顶部
-//                case WMSZ_BOTTOM:    // 底部
-//                    pRect->right = pRect->left + static_cast<int>(contentHeight * aspectRatio);
-//                    break;
-//
-//                case WMSZ_TOPLEFT:   // 左上角
-//                case WMSZ_TOPRIGHT:  // 右上角
-//                case WMSZ_BOTTOMLEFT:// 左下角
-//                case WMSZ_BOTTOMRIGHT:// 右下角
-//                {
-//                    // 计算鼠标移动方向的主导轴
-//                    bool widthDominant = (abs(pRect->right - pRect->left) > abs(pRect->bottom - pRect->top) * aspectRatio);
-//                    if (widthDominant) {
-//                        contentHeight = static_cast<int>((pRect->right - pRect->left) / aspectRatio);
-//                        pRect->bottom = pRect->top + titleHeight + contentHeight;
-//                    } else {
-//                        pRect->right = pRect->left + static_cast<int>(contentHeight * aspectRatio);
-//                    }
-//                    break;
-//                }
-//            }
-//
-//            // 确保最小尺寸
-//            MINMAXINFO mmi = {};
-//            SendMessage(hwnd, WM_GETMINMAXINFO, 0, (LPARAM)&mmi);
-//            if ((pRect->right - pRect->left) < mmi.ptMinTrackSize.x) {
-//                pRect->right = pRect->left + mmi.ptMinTrackSize.x;
-//            }
-//            if ((pRect->bottom - pRect->top) < mmi.ptMinTrackSize.y) {
-//                pRect->bottom = pRect->top + mmi.ptMinTrackSize.y;
-//            }
-//
-//            // 更新状态栏位置
-//            RECT windowRect = *pRect;
-//            int width = windowRect.right - windowRect.left;
-//            int height = windowRect.bottom - windowRect.top;
-//            RECT statusRect = {0, height - STATUS_BAR_HEIGHT, width, height};
-//            MoveWindow(g_appState.hwndStatusBar, statusRect.left, statusRect.top,
-//                       statusRect.right - statusRect.left, STATUS_BAR_HEIGHT, TRUE);
-//
-//            // 调用默认处理并重置状态
-//            LRESULT result = DefWindowProc(hwnd, msg, wParam, lParam);
-//            g_appState.isResizing = false;
-//            return result;
-//        }
-
+        //有边框sizing
         case WM_SIZING: {
             if (g_appState.isResizing) return TRUE;
             g_appState.isResizing = true;
 
-            //  只调整窗口大小，不再限制宽高比
-            LRESULT result = DefWindowProc(hwnd, msg, wParam, lParam);
-            return result;
+            RECT* rect = (RECT*)lParam;
+            int newWidth = rect->right - rect->left;
+            int newHeight = rect->bottom - rect->top;
+
+            // 获取原始窗口宽高比
+            HWND originalHwnd = GetOriginalWindowHandle(hwnd);
+            if (originalHwnd) {
+                float aspectRatio = 0.0f;
+                for (auto& pair : g_thumbnails) {
+                    if (pair.second.hwndOriginal == originalHwnd) {
+                        aspectRatio = pair.second.aspectRatio;
+                        break;
+                    }
+                }
+
+                // 根据宽度调整高度，或根据高度调整宽度
+                if (newWidth > 0 && newHeight > 0 && aspectRatio > 0.0f) {
+                    float targetHeight = newWidth / aspectRatio + TITLE_BAR_HEIGHT;
+                    float targetWidth = (newHeight - TITLE_BAR_HEIGHT) * aspectRatio;
+
+                    // 如果调整高度，以宽度为基准
+                    if (abs(newHeight - targetHeight) > abs(newWidth - targetWidth)) {
+                        rect->bottom = rect->top + static_cast<int>(targetHeight);
+                    }
+                        // 否则，以高度为基准
+                    else {
+                        rect->right = rect->left + static_cast<int>(targetWidth);
+                    }
+                }
+            }
+            return TRUE;
         }
 
-        case WM_ENTERSIZEMOVE:
-            g_appState.isResizing = true; // 开始调整
-            break;
 
-
+        // 有边框 锁定长宽比
         case WM_EXITSIZEMOVE: {
             g_appState.isResizing = false; // 结束调整
 
@@ -589,6 +467,7 @@ LRESULT CALLBACK PipWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             break;
         }
+
         case WM_GETMINMAXINFO: {
             // 设置最小尺寸
             MINMAXINFO *mmi = (MINMAXINFO *) lParam;
